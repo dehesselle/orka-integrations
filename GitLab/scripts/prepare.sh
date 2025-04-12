@@ -88,7 +88,7 @@ trap cleanup_on_failure ERR
 echo "Authenticating with Orka..."
 
 orka3 config set --api-url "$ORKA_ENDPOINT"
-orka3 user set-token "$ORKA_TOKEN"
+orka3 user set-token "$(cat "$ORKA_TOKEN_FILE")"
 
 echo "Authenticated."
 
