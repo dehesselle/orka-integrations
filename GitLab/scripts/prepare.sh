@@ -31,6 +31,25 @@ function delete_vm_and_cleanup {
     fi
 }
 
+function set_passwords {
+    local connection_info
+    connection_info=$(<"$CONNECTION_INFO_ID")
+    IFS=';' read -ra info <<< "$connection_info"
+    local vm_ip=${info[0]}
+    local vm_ssh_port=${info[1]}
+
+    local password
+    password=$(
+        dd if=/dev/urandom bs=1 count=256 2>/dev/null |
+        LC_ALL=C tr -cd '[:alnum:]' |
+        head -c 32
+    )
+
+    echo "$(date) $vm_ip $vm_ssh_port $password" >> "$XDG_RUNTIME_DIR"/orka_vm_password.log
+    ssh -i "$ORKA_SSH_KEY_FILE" "$ORKA_VM_USER@$vm_ip" -p "$vm_ssh_port" "dscl . -passwd /Users/$ORKA_VM_USER start123 \"$password\""
+    ssh -i "$ORKA_SSH_KEY_FILE" "admin@$vm_ip" -p "$vm_ssh_port" "dscl . -passwd /Users/admin admin \"$password\""
+}
+
 function attempt_deployment {
     local vm_name=$1
     
@@ -102,6 +121,7 @@ for attempt in $(seq 1 "$VM_DEPLOYMENT_ATTEMPTS"); do
     
     if attempt_deployment "$vm_name"; then
         echo "Deployment successful on attempt $attempt"
+        set_passwords
         break
     else
         echo "Deployment attempt $attempt failed"
